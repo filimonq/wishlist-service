@@ -1,0 +1,3 @@
+package httpadapter
+
+// swaggo/swag
