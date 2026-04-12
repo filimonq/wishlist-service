@@ -9,6 +9,15 @@ import (
 	"github.com/filimonq/wishlist-service/internal/domain"
 )
 
+// @Summary  Регистрация
+// @Tags     auth
+// @Accept   json
+// @Produce  json
+// @Param    body body     RegisterRequest true "Данные для регистрации"
+// @Success  201  {object} UserResponse
+// @Failure  400  {object} map[string]string
+// @Failure  409  {object} map[string]string
+// @Router   /auth/register [post]
 func (s *Server) register(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -25,6 +34,15 @@ func (s *Server) register(c *gin.Context) {
 	c.JSON(http.StatusCreated, UserResponse{ID: user.ID, Email: user.Email})
 }
 
+// @Summary  Вход
+// @Tags     auth
+// @Accept   json
+// @Produce  json
+// @Param    body body     LoginRequest true "Данные для входа"
+// @Success  200  {object} AuthResponse
+// @Failure  400  {object} map[string]string
+// @Failure  401  {object} map[string]string
+// @Router   /auth/login [post]
 func (s *Server) login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
