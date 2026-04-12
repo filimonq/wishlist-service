@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 )
 
@@ -14,5 +16,5 @@ type Item struct {
 	URL         string
 	Priority    Priority
 	IsReserved  bool
-	// ReservedAt  *time.Time
+	ReservedAt  *time.Time
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -12,6 +13,8 @@ import (
 	"github.com/filimonq/wishlist-service/internal/domain"
 	"github.com/filimonq/wishlist-service/internal/service"
 )
+
+const tokenTTL = 24 * time.Hour
 
 type Service struct {
 	users     service.UserRepository
@@ -64,6 +67,8 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, er
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub": user.ID.String(),
+		"exp": time.Now().Add(tokenTTL).Unix(),
+		"iat": time.Now().Unix(),
 	})
 
 	signed, err := token.SignedString([]byte(s.jwtSecret))
