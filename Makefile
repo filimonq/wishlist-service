@@ -22,4 +22,4 @@ swag:
 	swag init -g cmd/wishlist/main.go -o docs
 
 k6:
-	K6_WEB_DASHBOARD=true k6 run k6_tests/load_test.js
+	K6_WEB_DASHBOARD=true k6 run k6.js
