@@ -20,6 +20,10 @@ func New(wishlists service.WishlistRepository, items service.ItemRepository) ser
 }
 
 func (s *Service) Create(ctx context.Context, userID, wishlistID uuid.UUID, name, description, url string, priority domain.Priority) (*domain.Item, error) {
+	if !priority.Valid() {
+		return nil, domain.ErrInvalidPriority
+	}
+
 	w, err := s.wishlists.GetByID(ctx, wishlistID)
 	if err != nil {
 		return nil, fmt.Errorf("get wishlist: %w", err)
@@ -98,6 +102,9 @@ func (s *Service) Update(ctx context.Context, userID, wishlistID, itemID uuid.UU
 		item.URL = *url
 	}
 	if priority != nil {
+		if !priority.Valid() {
+			return nil, domain.ErrInvalidPriority
+		}
 		item.Priority = *priority
 	}
 

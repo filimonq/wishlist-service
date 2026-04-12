@@ -11,4 +11,6 @@ var (
 	ErrItemNotFound         = errors.New("item not found")
 	ErrUserNotFound         = errors.New("user not found")
 	ErrWishlistAccessDenied = errors.New("wishlist access denied")
+	ErrEventDateInPast      = errors.New("event date must be in the future")
+	ErrInvalidPriority      = errors.New("priority must be between 1 and 5")
 )

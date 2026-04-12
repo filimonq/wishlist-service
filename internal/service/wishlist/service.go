@@ -20,6 +20,10 @@ func New(wishlists service.WishlistRepository) service.WishlistService {
 }
 
 func (s *Service) Create(ctx context.Context, userID uuid.UUID, title, description string, eventDate time.Time) (*domain.Wishlist, error) {
+	if !eventDate.After(time.Now()) {
+		return nil, domain.ErrEventDateInPast
+	}
+
 	w := &domain.Wishlist{
 		ID:          uuid.New(),
 		UserID:      userID,
@@ -75,6 +79,9 @@ func (s *Service) Update(ctx context.Context, userID, id uuid.UUID, title, descr
 		w.Description = *description
 	}
 	if eventDate != nil {
+		if !eventDate.After(time.Now()) {
+			return nil, domain.ErrEventDateInPast
+		}
 		w.EventDate = *eventDate
 	}
 
