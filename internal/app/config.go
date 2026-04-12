@@ -13,7 +13,7 @@ func NewConfig() *Config {
 	return &Config{
 		HTTPAddr:       getEnv("HTTP_ADDR", ":8080"),
 		DBConn:         getEnv("DB_CONN", "postgres://postgres:postgres@localhost:5432/wishlist?sslmode=disable"),
-		JWTSecret:      getEnv("JWT_SECRET", ""),
+		JWTSecret:      getEnv("JWT_SECRET", "supersecretkey"),
 		MigrationsPath: getEnv("MIGRATIONS_PATH", "migrations"),
 	}
 }

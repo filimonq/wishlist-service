@@ -10,6 +10,22 @@ REST API сервис для управления вишлистами пода�
 - **PostgreSQL 18**
 - **Docker Compose**
 
+## Архитектура
+Проект построен по принципам гексагональной архитектуры (Ports & Adapters):
+
+```
+cmd/                        — точка входа
+internal/
+  app/                      — конфигурация, DI, запуск сервера
+  domain/                   — бизнес-сущности и ошибки
+  service/                  — бизнес-логика, ports
+  adapter/
+    in/http/                — HTTP-хендлеры, роутер, middleware, DTO
+    out/repository/         — реализации репозиториев (PostgreSQL, pgx)
+  migrate/                  — запуск миграций при старте
+migrations/                 — SQL-миграции
+```
+
 ## Запуск
 
 ```bash
@@ -101,11 +117,22 @@ curl http://localhost:8080/api/v1/public/<public_token>
 curl -X POST http://localhost:8080/api/v1/public/<public_token>/items/<itemId>/reserve
 ```
 
+## Тестирование
 
+Для запуска Unit-тестов используются моки, генерируемые через mockery.
+```bash
+# генерация моков
+make mocks
 
+# запуск всех тестов
+make test
+
+# запуск линтера
+make lint
+```
 
 ## Нагрузочное тестирование
-Скрипт лежит в корне проекта (k6.js)
+Скрипт лежит в папке k6 (k6/race_cond_test.js)
 Тест проверяет атомарность бронирования — 50 VU одновременно ломятся на один подарок.
 
 ```bash
