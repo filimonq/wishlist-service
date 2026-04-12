@@ -1,4 +1,4 @@
-.PHONY: up down logs lint test swag k6
+.PHONY: up down logs lint test swag k6 mocks
 
 up:
 	docker compose up --build -d
@@ -19,7 +19,12 @@ test:
 	rm coverage.out coverage.filtered.out
 
 swag:
-	swag init -g cmd/booking/main.go -o docs
+	swag init -g cmd/wishlist/main.go -o docs
 
 k6:
-	K6_WEB_DASHBOARD=true k6 run k6_tests/load_test.js
+	K6_WEB_DASHBOARD=true k6 run k6/race_cond_test.js
+
+mocks:
+	mockery --name=WishlistRepository --dir=internal/service --output=internal/service/mocks --outpkg=mocks
+	mockery --name=ItemRepository --dir=internal/service --output=internal/service/mocks --outpkg=mocks
+	mockery --name=UserRepository --dir=internal/service --output=internal/service/mocks --outpkg=mocks
