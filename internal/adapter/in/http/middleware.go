@@ -9,7 +9,10 @@ import (
 	"github.com/google/uuid"
 )
 
-const ctxUserID = "userID"
+const (
+	ctxUserID        = "userID"
+	bearerPartsCount = 2
+)
 
 func (s *Server) authMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -19,8 +22,8 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		parts := strings.SplitN(header, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
+		parts := strings.SplitN(header, " ", bearerPartsCount)
+		if len(parts) != bearerPartsCount || parts[0] != "Bearer" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header"})
 			return
 		}
@@ -60,5 +63,13 @@ func (s *Server) authMiddleware() gin.HandlerFunc {
 }
 
 func getUserID(c *gin.Context) uuid.UUID {
-	return c.MustGet(ctxUserID).(uuid.UUID)
+	val, ok := c.Get(ctxUserID)
+	if !ok {
+		return uuid.Nil
+	}
+	id, ok := val.(uuid.UUID)
+	if !ok {
+		return uuid.Nil
+	}
+	return id
 }
