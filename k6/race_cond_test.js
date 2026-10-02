@@ -21,7 +21,7 @@ export function setup() {
   const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
 
   const wl = http.post(`${BASE_URL}/wishlists`,
-    JSON.stringify({ title: 'Race', description: '', event_date: '2026-06-01T00:00:00Z' }), { headers: authHeaders });
+    JSON.stringify({ title: 'Race', description: '', event_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() }), { headers: authHeaders });
   const wishlist = JSON.parse(wl.body);
 
   const item = http.post(`${BASE_URL}/wishlists/${wishlist.id}/items`,

@@ -5,7 +5,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
     && chown appuser:appgroup /prod-dir \
     && apk add --no-cache \
         ca-certificates=20251003-r0 \
-        tzdata=2026a-r0
+        tzdata=2026d-r0
 
 WORKDIR /app
 
@@ -19,6 +19,12 @@ RUN CGO_ENABLED=0 go build \
         -trimpath \
         -o /wishlist-service \
         ./cmd/wishlist/main.go
+
+RUN CGO_ENABLED=0 go build \
+        -ldflags="-s -w" \
+        -trimpath \
+        -o /wishlist-migrate \
+        ./cmd/migrate
 
 FROM scratch
 
@@ -37,6 +43,11 @@ COPY --from=builder \
      --chown=appuser:appgroup \
      --chmod=755 \
      /wishlist-service ./wishlist-service
+
+COPY --from=builder \
+     --chown=appuser:appgroup \
+     --chmod=755 \
+     /wishlist-migrate ./wishlist-migrate
 
 USER appuser
 

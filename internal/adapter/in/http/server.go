@@ -1,6 +1,11 @@
 package httpadapter
 
 import (
+	"log/slog"
+	"net/http"
+	"runtime/debug"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -31,9 +36,17 @@ func NewServer(
 
 func (s *Server) Router() *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Logger())
-	r.Use(gin.Recovery())
+	r.Use(func(c *gin.Context) {
+		start := time.Now()
+		c.Next()
+		slog.Info("http request", "method", c.Request.Method, "route", c.FullPath(), "status", c.Writer.Status(), "duration", time.Since(start))
+	})
+	r.Use(gin.CustomRecoveryWithWriter(nil, func(c *gin.Context, recovered any) {
+		slog.Error("http panic", "route", c.FullPath(), "panic", recovered, "stack", string(debug.Stack()))
+		c.AbortWithStatus(http.StatusInternalServerError)
+	}))
 
+	registerFrontend(r)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	v1 := r.Group("/api/v1")

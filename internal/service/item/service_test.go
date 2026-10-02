@@ -64,7 +64,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:   "wishlist not found",
 			userID: testUserID,
-			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
+			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
 				wl.On("GetByID", mock.Anything, testWishlistID).
 					Return(nil, domain.ErrWishlistNotFound)
 			},
@@ -73,7 +73,7 @@ func TestCreate(t *testing.T) {
 		{
 			name:   "access denied",
 			userID: otherUserID,
-			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
+			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
 				wl.On("GetByID", mock.Anything, testWishlistID).Return(newWishlist(), nil)
 			},
 			wantErr: domain.ErrWishlistAccessDenied,
@@ -106,7 +106,7 @@ func TestCreate(t *testing.T) {
 			switch {
 			case tt.wantErr != nil:
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 				assert.Nil(t, item)
 			case tt.wantAnyErr:
 				require.Error(t, err)
@@ -152,7 +152,7 @@ func TestUpdate(t *testing.T) {
 		{
 			name:   "access denied",
 			userID: otherUserID,
-			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
+			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
 				wl.On("GetByID", mock.Anything, testWishlistID).Return(newWishlist(), nil)
 			},
 			wantErr: domain.ErrWishlistAccessDenied,
@@ -206,7 +206,7 @@ func TestUpdate(t *testing.T) {
 			switch {
 			case tt.wantErr != nil:
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 				assert.Nil(t, item)
 			case tt.wantAnyErr:
 				require.Error(t, err)
@@ -247,7 +247,7 @@ func TestDelete(t *testing.T) {
 		{
 			name:   "access denied",
 			userID: otherUserID,
-			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
+			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
 				wl.On("GetByID", mock.Anything, testWishlistID).Return(newWishlist(), nil)
 			},
 			wantErr: domain.ErrWishlistAccessDenied,
@@ -292,7 +292,7 @@ func TestDelete(t *testing.T) {
 			switch {
 			case tt.wantErr != nil:
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 			case tt.wantAnyErr:
 				require.Error(t, err)
 			default:
@@ -322,7 +322,7 @@ func TestReserve(t *testing.T) {
 		},
 		{
 			name: "wishlist not found by token",
-			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
+			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
 				wl.On("GetByPublicToken", mock.Anything, testPublicToken).
 					Return(nil, domain.ErrWishlistNotFound)
 			},
@@ -365,7 +365,7 @@ func TestReserve(t *testing.T) {
 			// Assert
 			if tt.wantErr != nil {
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 				return
 			}
 			require.NoError(t, err)

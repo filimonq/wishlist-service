@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wishlist — списки желаний</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="header">
+    <a class="brand" href="/">Wishlist<span>списки желаний</span></a>
+    <button id="logout" class="secondary" hidden>Выйти</button>
+  </header>
+  <main>
+    <p id="notice" class="notice" role="status" hidden></p>
+    <section id="auth-view" class="auth card" hidden>
+      <span class="eyebrow">Подарки, которым будут рады</span>
+      <h1>Собери свои желания</h1>
+      <p class="muted">Создай список, добавь подарки и поделись ссылкой с друзьями.</p>
+      <div class="tabs" aria-label="Авторизация">
+        <button id="login-tab" class="active" type="button" aria-pressed="true">Вход</button>
+        <button id="register-tab" type="button" aria-pressed="false">Регистрация</button>
+      </div>
+      <form id="auth-form">
+        <label>Email<input name="email" type="email" autocomplete="username" required maxlength="255"></label>
+        <label>Пароль<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+        <button id="auth-submit" type="submit">Войти</button>
+      </form>
+    </section>
+    <section id="owner-view" hidden>
+      <div class="page-heading"><div><span class="eyebrow">Всё начинается с желания</span><h1>Мои вишлисты</h1></div><button id="create-wishlist">+ Новый список</button></div>
+      <div class="workspace">
+        <aside class="card sidebar"><h2>Списки</h2><div id="wishlist-list" class="wishlist-list"></div></aside>
+        <section id="wishlist-detail" class="card detail"></section>
+      </div>
+    </section>
+    <section id="public-view" class="card detail public" hidden>
+      <a href="#" class="back">← Мои списки</a>
+      <div id="public-detail"></div>
+    </section>
+  </main>
+  <footer>Меньше догадок. Больше желанных подарков.</footer>
+
+  <dialog id="wishlist-dialog">
+    <form id="wishlist-form">
+      <h2 id="wishlist-form-title">Новый вишлист</h2>
+      <label>Название<input name="title" required maxlength="255"></label>
+      <label>Описание<textarea name="description" maxlength="1000" rows="3"></textarea></label>
+      <label>Дата события<input name="event_date" type="datetime-local" required></label>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="actions"><button type="button" class="secondary" data-close="wishlist-dialog">Отмена</button><button type="submit">Сохранить</button></div>
+    </form>
+  </dialog>
+  <dialog id="item-dialog">
+    <form id="item-form">
+      <h2 id="item-form-title">Добавить подарок</h2>
+      <label>Название<input name="name" required maxlength="255"></label>
+      <label>Описание<textarea name="description" maxlength="1000" rows="3"></textarea></label>
+      <label>Ссылка на подарок<input name="url" type="url" placeholder="https://…"></label>
+      <label>Приоритет<select name="priority"><option value="1">1 — небольшой интерес</option><option value="2">2</option><option value="3" selected>3 — было бы здорово</option><option value="4">4</option><option value="5">5 — очень хочу</option></select></label>
+      <p class="form-error" role="alert" hidden></p>
+      <div class="actions"><button type="button" class="secondary" data-close="item-dialog">Отмена</button><button type="submit">Сохранить</button></div>
+    </form>
+  </dialog>
+  <template id="detail-template">
+    <div class="detail-heading"><h2 class="detail-title"></h2><p class="detail-date muted"></p><p class="detail-description"></p></div>
+    <div class="owner-actions" hidden>
+      <div class="actions"><button class="add-item">+ Добавить подарок</button><button class="edit-wishlist secondary">Изменить список</button><button class="delete-wishlist danger">Удалить</button></div>
+      <label class="share-label">Публичная ссылка — друзья могут выбрать и забронировать подарок<input class="share-link" readonly aria-label="Публичная ссылка"></label>
+      <div class="actions"><button class="copy-link secondary">Скопировать ссылку</button><a class="open-public" target="_blank" rel="noopener">Открыть ↗</a></div>
+    </div>
+    <div class="items"></div>
+  </template>
+  <template id="item-template">
+    <article class="item">
+      <div class="item-heading"><h3 class="item-name"></h3><span class="badge"></span></div>
+      <p class="item-description muted"></p><p class="item-priority muted"></p>
+      <a class="item-link" target="_blank" rel="noopener noreferrer" hidden>Посмотреть подарок ↗</a>
+      <div class="actions"><button class="edit-item secondary" hidden>Изменить</button><button class="delete-item danger" hidden>Удалить</button><button class="reserve-item" hidden>Забронировать</button></div>
+    </article>
+  </template>
+</body>
+</html>

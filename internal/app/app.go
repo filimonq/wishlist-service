@@ -3,9 +3,10 @@ package app
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -22,33 +23,47 @@ func New(cfg *Config, deps *Dependencies) *App {
 	return &App{cfg: cfg, deps: deps}
 }
 
-func (a *App) Run() {
+func (a *App) Run() error {
+	defer a.deps.DB.Close()
+
 	srv := &http.Server{
 		Addr:    a.cfg.HTTPAddr,
 		Handler: a.deps.Router,
 	}
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(context.Background(), "tcp", srv.Addr)
+	if err != nil {
+		return fmt.Errorf("listen HTTP: %w", err)
+	}
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	signalCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	serverErrors := make(chan error, 1)
 
 	go func() {
-		slog.Info("server started", "addr", a.cfg.HTTPAddr)
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("server error", "error", err)
-			quit <- syscall.SIGTERM
-		}
+		serverErrors <- srv.Serve(listener)
 	}()
+	slog.Info("server started", "addr", a.cfg.HTTPAddr)
 
-	<-quit
+	select {
+	case err = <-serverErrors:
+		if !errors.Is(err, http.ErrServerClosed) {
+			return fmt.Errorf("serve HTTP: %w", err)
+		}
+		return nil
+	case <-signalCtx.Done():
+		stop()
+	}
 	slog.Info("shutting down...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
-		slog.Error("shutdown error", "error", err)
+	if err = srv.Shutdown(ctx); err != nil {
+		_ = srv.Close()
+		return fmt.Errorf("shutdown HTTP: %w", err)
 	}
 
-	a.deps.DB.Close()
 	slog.Info("server stopped")
+	return nil
 }

@@ -98,7 +98,7 @@ func TestRegister(t *testing.T) {
 			switch {
 			case tt.wantErr != nil:
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 				assert.Nil(t, user)
 			case tt.wantAnyErr:
 				require.Error(t, err)
@@ -141,7 +141,7 @@ func TestLogin(t *testing.T) {
 			name:     "user not found returns ErrInvalidCredentials",
 			email:    "ghost@example.com",
 			password: rawPassword,
-			setupMock: func(t *testing.T, repo *mocks.UserRepository) {
+			setupMock: func(_ *testing.T, repo *mocks.UserRepository) {
 				repo.On("GetByEmail", mock.Anything, "ghost@example.com").
 					Return(nil, domain.ErrUserNotFound)
 			},
@@ -161,7 +161,7 @@ func TestLogin(t *testing.T) {
 			name:     "repository error",
 			email:    "user@example.com",
 			password: rawPassword,
-			setupMock: func(t *testing.T, repo *mocks.UserRepository) {
+			setupMock: func(_ *testing.T, repo *mocks.UserRepository) {
 				repo.On("GetByEmail", mock.Anything, "user@example.com").
 					Return(nil, errDB)
 			},
@@ -185,7 +185,7 @@ func TestLogin(t *testing.T) {
 			switch {
 			case tt.wantErr != nil:
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 				assert.Empty(t, token)
 			case tt.wantAnyErr:
 				require.Error(t, err)

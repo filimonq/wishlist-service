@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	httpadapter "github.com/filimonq/wishlist-service/internal/adapter/in/http"
 	"github.com/filimonq/wishlist-service/internal/adapter/out/repository"
-	"github.com/filimonq/wishlist-service/internal/migrate"
 	authsvc "github.com/filimonq/wishlist-service/internal/service/auth"
 	itemsvc "github.com/filimonq/wishlist-service/internal/service/item"
 	wishlistsvc "github.com/filimonq/wishlist-service/internal/service/wishlist"
@@ -19,17 +19,18 @@ type Dependencies struct {
 	DB     *pgxpool.Pool
 }
 
-func NewDependencies(cfg *Config) (*Dependencies, error) {
-	if err := migrate.Run(cfg.DBConn, cfg.MigrationsPath); err != nil {
-		return nil, fmt.Errorf("run migrations: %w", err)
-	}
+const databaseConnectTimeout = 5 * time.Second
 
-	db, err := pgxpool.New(context.Background(), cfg.DBConn)
+func NewDependencies(cfg *Config) (*Dependencies, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), databaseConnectTimeout)
+	defer cancel()
+
+	db, err := pgxpool.New(ctx, cfg.DBConn)
 	if err != nil {
 		return nil, fmt.Errorf("connect to db: %w", err)
 	}
 
-	if err = db.Ping(context.Background()); err != nil {
+	if err = db.Ping(ctx); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("ping db: %w", err)
 	}

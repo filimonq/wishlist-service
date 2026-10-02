@@ -133,7 +133,6 @@ definitions:
       user_id:
         type: string
     type: object
-host: localhost:8080
 info:
   contact: {}
   description: REST API для управления вишлистами подарков

@@ -19,7 +19,7 @@ import (
 var (
 	testUserID     = uuid.New()
 	testWishlistID = uuid.New()
-	testEventDate  = time.Date(2025, 12, 31, 0, 0, 0, 0, time.UTC)
+	testEventDate  = time.Now().Add(48 * time.Hour)
 	errDB          = errors.New("db unavailable")
 )
 
@@ -76,7 +76,7 @@ func TestCreate(t *testing.T) {
 			switch {
 			case tt.wantErr != nil:
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 				assert.Nil(t, w)
 			case tt.wantAnyErr:
 				require.Error(t, err)
@@ -144,7 +144,7 @@ func TestGet(t *testing.T) {
 			// Assert
 			if tt.wantErr != nil {
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 				assert.Nil(t, w)
 				return
 			}
@@ -159,7 +159,7 @@ func TestUpdate(t *testing.T) {
 
 	newTitle := "New Title"
 	newDesc := "New Description"
-	newDate := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
+	newDate := testEventDate.Add(24 * time.Hour)
 	otherUserID := uuid.New()
 
 	tests := []struct {
@@ -251,7 +251,7 @@ func TestUpdate(t *testing.T) {
 			switch {
 			case tt.wantErr != nil:
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 				assert.Nil(t, w)
 			case tt.wantAnyErr:
 				require.Error(t, err)
@@ -331,7 +331,7 @@ func TestDelete(t *testing.T) {
 			switch {
 			case tt.wantErr != nil:
 				require.Error(t, err)
-				assert.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, err, tt.wantErr)
 			case tt.wantAnyErr:
 				require.Error(t, err)
 			default:
