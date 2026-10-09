@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wishlist-service
+  namespace: wishlist
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wishlist-service
+  template:
+    metadata:
+      labels:
+        app: wishlist-service
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: wishlist-service
+          image: filimonq/wishlist-service:k8s-v1
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: wishlist-config
+          env:
+            - name: DB_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: wishlist-secrets
+                  key: DB_CONN
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: wishlist-secrets
+                  key: JWT_SECRET
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wishlist-service
+  namespace: wishlist
+spec:
+  type: NodePort
+  selector:
+    app: wishlist-service
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      nodePort: 30080

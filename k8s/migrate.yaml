@@ -1,0 +1,47 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wishlist-migrate
+  namespace: wishlist
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 120
+  template:
+    metadata:
+      labels:
+        app: wishlist-migrate
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: migrate
+          image: filimonq/wishlist-service:k8s-v1
+          imagePullPolicy: Never
+          command: [/app/wishlist-migrate]
+          env:
+            - name: DB_CONN
+              valueFrom:
+                secretKeyRef:
+                  name: wishlist-secrets
+                  key: DB_CONN
+            - name: MIGRATIONS_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: wishlist-config
+                  key: MIGRATIONS_PATH
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 128Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]

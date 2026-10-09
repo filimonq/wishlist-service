@@ -34,3 +34,6 @@ go.work.sum
 # .vscode/
 
 internal/service/mocks/
+
+# local k8s secrets
+k8s/secret.local.yaml

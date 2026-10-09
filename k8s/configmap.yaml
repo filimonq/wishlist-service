@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wishlist-config
+  namespace: wishlist
+data:
+  HTTP_PORT: "8080"
+  MIGRATIONS_PATH: /app/migrations
+  GIN_MODE: release
+  POSTGRES_DB: wishlist
+  POSTGRES_USER: wishlist
