@@ -1,0 +1,112 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wishlist-alert-rules
+  namespace: wishlist
+data:
+  alerts.yaml: |
+    groups:
+      - name: wishlist-latency
+        type: vlogs
+        interval: 15s
+        rules:
+          - alert: WishlistHighLatency
+            expr: |
+              _time:5m service.name:="wishlist-service" _msg:="http request" route:="/api/v1/"*
+              | stats by (service.name) quantile(0.95, duration_ms) p95_ms
+              | filter p95_ms:>%{LATENCY_THRESHOLD_MS}
+            for: 1m
+            labels:
+              severity: warning
+            annotations:
+              summary: Высокая задержка API wishlist-service
+              description: 'p95 времени обработки API-запросов за 5 минут — {{ $value }} мс, порог — %{LATENCY_THRESHOLD_MS} мс. Условие сохраняется не менее минуты.'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wishlist-vmalert
+  namespace: wishlist
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: wishlist-vmalert
+  template:
+    metadata:
+      labels:
+        app: wishlist-vmalert
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: vmalert
+          image: victoriametrics/vmalert:v1.152.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -rule=/etc/vmalert/alerts.yaml
+            - -datasource.url=http://victoria-logs:9428
+            - -rule.evalDelay=5s
+            - -notifier.blackhole
+            - -httpListenAddr=:8880
+            - -loggerFormat=json
+            - -loggerOutput=stdout
+          env:
+            - name: LATENCY_THRESHOLD_MS
+              value: "500"
+          ports:
+            - name: http
+              containerPort: 8880
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 2
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 30
+          volumeMounts:
+            - name: rules
+              mountPath: /etc/vmalert
+              readOnly: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      volumes:
+        - name: rules
+          configMap:
+            name: wishlist-alert-rules
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wishlist-vmalert
+  namespace: wishlist
+spec:
+  type: ClusterIP
+  selector:
+    app: wishlist-vmalert
+  ports:
+    - name: http
+      port: 8880
+      targetPort: http

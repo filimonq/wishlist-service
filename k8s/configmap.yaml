@@ -4,6 +4,8 @@ metadata:
   name: wishlist-config
   namespace: wishlist
 data:
+  APP_VERSION: k8s-v1
+  APP_ENV: minikube
   HTTP_PORT: "8080"
   MIGRATIONS_PATH: /app/migrations
   GIN_MODE: release

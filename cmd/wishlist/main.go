@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stdout, nil)))
+	app.ConfigureLogging()
 
 	cfg, err := app.NewConfig()
 	if err != nil {
