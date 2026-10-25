@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	HTTPAddr       string
+	MetricsAddr    string
 	DBConn         string
 	JWTSecret      string
 	MigrationsPath string
@@ -30,6 +31,16 @@ func NewConfig() (*Config, error) {
 	if err != nil || portNumber < 1 || portNumber > 65535 {
 		return nil, errors.New("HTTP_PORT must be an integer between 1 and 65535")
 	}
+
+	metricsPort := getEnv("METRICS_PORT", "9090")
+	metricsPortNumber, err := strconv.Atoi(metricsPort)
+	if err != nil || metricsPortNumber < 1 || metricsPortNumber > 65535 {
+		return nil, errors.New("METRICS_PORT must be an integer between 1 and 65535")
+	}
+	if metricsPortNumber == portNumber {
+		return nil, errors.New("METRICS_PORT must differ from HTTP_PORT")
+	}
+	cfg.MetricsAddr = ":" + metricsPort
 	return cfg, nil
 }
 

@@ -3,6 +3,7 @@ package wishlist_test
 import (
 	"context"
 	"errors"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	metricsadapter "github.com/filimonq/wishlist-service/internal/adapter/out/metrics"
 	"github.com/filimonq/wishlist-service/internal/domain"
 	"github.com/filimonq/wishlist-service/internal/service/mocks"
 	wishlistsvc "github.com/filimonq/wishlist-service/internal/service/wishlist"
@@ -67,10 +69,18 @@ func TestCreate(t *testing.T) {
 			// Arrange
 			repo := mocks.NewWishlistRepository(t)
 			tt.setupMock(repo)
-			svc := wishlistsvc.New(repo)
+			metrics := metricsadapter.New()
+			svc := wishlistsvc.New(repo, metrics)
 
 			// Act
 			w, err := svc.Create(context.Background(), testUserID, "Birthday", "My birthday wishlist", testEventDate)
+			recorder := httptest.NewRecorder()
+			metrics.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/metrics", nil))
+			value := "0"
+			if err == nil {
+				value = "1"
+			}
+			assert.Contains(t, recorder.Body.String(), "wishlist_wishlists_created_total "+value+"\n")
 
 			// Assert
 			switch {
@@ -136,7 +146,7 @@ func TestGet(t *testing.T) {
 			// Arrange
 			repo := mocks.NewWishlistRepository(t)
 			tt.setupMock(repo)
-			svc := wishlistsvc.New(repo)
+			svc := wishlistsvc.New(repo, nil)
 
 			// Act
 			w, err := svc.Get(context.Background(), tt.userID, testWishlistID)
@@ -242,7 +252,7 @@ func TestUpdate(t *testing.T) {
 			// Arrange
 			repo := mocks.NewWishlistRepository(t)
 			tt.setupMock(repo)
-			svc := wishlistsvc.New(repo)
+			svc := wishlistsvc.New(repo, nil)
 
 			// Act
 			w, err := svc.Update(context.Background(), tt.userID, testWishlistID, tt.title, tt.desc, tt.date)
@@ -322,7 +332,7 @@ func TestDelete(t *testing.T) {
 			// Arrange
 			repo := mocks.NewWishlistRepository(t)
 			tt.setupMock(repo)
-			svc := wishlistsvc.New(repo)
+			svc := wishlistsvc.New(repo, nil)
 
 			// Act
 			err := svc.Delete(context.Background(), tt.userID, testWishlistID)

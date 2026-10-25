@@ -13,10 +13,11 @@ import (
 type Service struct {
 	wishlists service.WishlistRepository
 	items     service.ItemRepository
+	metrics   service.BusinessMetrics
 }
 
-func New(wishlists service.WishlistRepository, items service.ItemRepository) service.ItemService {
-	return &Service{wishlists: wishlists, items: items}
+func New(wishlists service.WishlistRepository, items service.ItemRepository, metrics service.BusinessMetrics) service.ItemService {
+	return &Service{wishlists: wishlists, items: items, metrics: metrics}
 }
 
 func (s *Service) Create(ctx context.Context, userID, wishlistID uuid.UUID, name, description, url string, priority domain.Priority) (*domain.Item, error) {
@@ -157,5 +158,8 @@ func (s *Service) Reserve(ctx context.Context, token uuid.UUID, itemID uuid.UUID
 		return fmt.Errorf("reserve item: %w", err)
 	}
 
+	if s.metrics != nil {
+		s.metrics.ItemReserved()
+	}
 	return nil
 }

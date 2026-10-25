@@ -54,3 +54,10 @@ type ItemRepository interface {
 	Delete(ctx context.Context, id uuid.UUID) error
 	Reserve(ctx context.Context, id uuid.UUID) error
 }
+
+type BusinessMetrics interface {
+	UserRegistered()
+	UserLoggedIn()
+	WishlistCreated()
+	ItemReserved()
+}

@@ -3,6 +3,7 @@ package item_test
 import (
 	"context"
 	"errors"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	metricsadapter "github.com/filimonq/wishlist-service/internal/adapter/out/metrics"
 	"github.com/filimonq/wishlist-service/internal/domain"
 	itemsvc "github.com/filimonq/wishlist-service/internal/service/item"
 	"github.com/filimonq/wishlist-service/internal/service/mocks"
@@ -97,7 +99,7 @@ func TestCreate(t *testing.T) {
 			wlRepo := mocks.NewWishlistRepository(t)
 			itRepo := mocks.NewItemRepository(t)
 			tt.setupMock(wlRepo, itRepo)
-			svc := itemsvc.New(wlRepo, itRepo)
+			svc := itemsvc.New(wlRepo, itRepo, nil)
 
 			// Act
 			item, err := svc.Create(context.Background(), tt.userID, testWishlistID, "PS5", "", "", domain.Priority(3))
@@ -197,7 +199,7 @@ func TestUpdate(t *testing.T) {
 			wlRepo := mocks.NewWishlistRepository(t)
 			itRepo := mocks.NewItemRepository(t)
 			tt.setupMock(wlRepo, itRepo)
-			svc := itemsvc.New(wlRepo, itRepo)
+			svc := itemsvc.New(wlRepo, itRepo, nil)
 
 			// Act
 			item, err := svc.Update(context.Background(), tt.userID, testWishlistID, testItemID, &newName, nil, nil, nil)
@@ -283,7 +285,7 @@ func TestDelete(t *testing.T) {
 			wlRepo := mocks.NewWishlistRepository(t)
 			itRepo := mocks.NewItemRepository(t)
 			tt.setupMock(wlRepo, itRepo)
-			svc := itemsvc.New(wlRepo, itRepo)
+			svc := itemsvc.New(wlRepo, itRepo, nil)
 
 			// Act
 			err := svc.Delete(context.Background(), tt.userID, testWishlistID, testItemID)
@@ -357,10 +359,18 @@ func TestReserve(t *testing.T) {
 			wlRepo := mocks.NewWishlistRepository(t)
 			itRepo := mocks.NewItemRepository(t)
 			tt.setupMock(wlRepo, itRepo)
-			svc := itemsvc.New(wlRepo, itRepo)
+			metrics := metricsadapter.New()
+			svc := itemsvc.New(wlRepo, itRepo, metrics)
 
 			// Act
 			err := svc.Reserve(context.Background(), testPublicToken, testItemID)
+			recorder := httptest.NewRecorder()
+			metrics.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/metrics", nil))
+			value := "0"
+			if err == nil {
+				value = "1"
+			}
+			assert.Contains(t, recorder.Body.String(), "wishlist_items_reserved_total "+value+"\n")
 
 			// Assert
 			if tt.wantErr != nil {

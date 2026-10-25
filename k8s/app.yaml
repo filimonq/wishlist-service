@@ -10,6 +10,10 @@ spec:
       app: wishlist-service
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: /metrics
       labels:
         app: wishlist-service
     spec:
@@ -26,6 +30,8 @@ spec:
           ports:
             - name: http
               containerPort: 8080
+            - name: metrics
+              containerPort: 9090
           envFrom:
             - configMapRef:
                 name: wishlist-config
@@ -49,18 +55,19 @@ spec:
               memory: 128Mi
           startupProbe:
             httpGet:
-              path: /
+              path: /livez
               port: http
             periodSeconds: 2
             failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /
+              path: /readyz
               port: http
             periodSeconds: 5
+            timeoutSeconds: 2
           livenessProbe:
             httpGet:
-              path: /
+              path: /livez
               port: http
             periodSeconds: 10
           securityContext:

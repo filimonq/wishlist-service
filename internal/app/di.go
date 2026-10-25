@@ -7,6 +7,7 @@ import (
 	"time"
 
 	httpadapter "github.com/filimonq/wishlist-service/internal/adapter/in/http"
+	metricsadapter "github.com/filimonq/wishlist-service/internal/adapter/out/metrics"
 	"github.com/filimonq/wishlist-service/internal/adapter/out/repository"
 	authsvc "github.com/filimonq/wishlist-service/internal/service/auth"
 	itemsvc "github.com/filimonq/wishlist-service/internal/service/item"
@@ -15,8 +16,9 @@ import (
 )
 
 type Dependencies struct {
-	Router http.Handler
-	DB     *pgxpool.Pool
+	Router  http.Handler
+	Metrics http.Handler
+	DB      *pgxpool.Pool
 }
 
 const databaseConnectTimeout = 5 * time.Second
@@ -39,14 +41,18 @@ func NewDependencies(cfg *Config) (*Dependencies, error) {
 	wishlistRepo := repository.NewWishlistRepository(db)
 	itemRepo := repository.NewItemRepository(db)
 
-	authService := authsvc.New(userRepo, cfg.JWTSecret)
-	wishlistService := wishlistsvc.New(wishlistRepo)
-	itemService := itemsvc.New(wishlistRepo, itemRepo)
+	metrics := metricsadapter.New()
+	authService := authsvc.New(userRepo, cfg.JWTSecret, metrics)
+	wishlistService := wishlistsvc.New(wishlistRepo, metrics)
+	itemService := itemsvc.New(wishlistRepo, itemRepo, metrics)
 
-	server := httpadapter.NewServer(authService, wishlistService, itemService, cfg.JWTSecret)
+	server := httpadapter.NewServer(authService, wishlistService, itemService, cfg.JWTSecret, db.Ping)
+
+	router := server.Router(httpadapter.RequestMetrics(metrics.ObserveHTTPRequest))
 
 	return &Dependencies{
-		Router: server.Router(),
-		DB:     db,
+		Router:  router,
+		Metrics: metrics.Handler(),
+		DB:      db,
 	}, nil
 }

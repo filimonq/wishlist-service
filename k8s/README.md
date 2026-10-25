@@ -57,6 +57,8 @@ kubectl --context=sre -n wishlist rollout status statefulset/postgres --timeout=
 
 PostgreSQL запускается в одной реплике. PVC создаётся из `volumeClaimTemplates` с использованием StorageClass `standard` в minikube. Данные монтируются в `/var/lib/postgresql`.
 
+В том же Pod работает второй контейнер — `postgres-exporter`. Он читает статистику PostgreSQL через `localhost:5432` и отдаёт метрики на порту `9187`. После запуска оба контейнера должны быть готовы: `READY 2/2`. Подробности — в [инструкции по метрикам](metrics/README.md#postgres-exporter).
+
 ## 4. Миграции
 
 ```bash
@@ -103,6 +105,6 @@ kubectl --context=sre -n wishlist get endpointslices -l kubernetes.io/service-na
 
 ```bash
 kubectl --context=sre -n wishlist logs deployment/wishlist-service
-kubectl --context=sre -n wishlist logs statefulset/postgres
+kubectl --context=sre -n wishlist logs statefulset/postgres -c postgres
 kubectl --context=sre -n wishlist get events --sort-by=.metadata.creationTimestamp
 ```

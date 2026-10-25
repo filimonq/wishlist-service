@@ -19,10 +19,11 @@ const tokenTTL = 24 * time.Hour
 type Service struct {
 	users     service.UserRepository
 	jwtSecret string
+	metrics   service.BusinessMetrics
 }
 
-func New(users service.UserRepository, jwtSecret string) service.AuthService {
-	return &Service{users: users, jwtSecret: jwtSecret}
+func New(users service.UserRepository, jwtSecret string, metrics service.BusinessMetrics) service.AuthService {
+	return &Service{users: users, jwtSecret: jwtSecret, metrics: metrics}
 }
 
 func (s *Service) Register(ctx context.Context, email, password string) (*domain.User, error) {
@@ -49,6 +50,9 @@ func (s *Service) Register(ctx context.Context, email, password string) (*domain
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 
+	if s.metrics != nil {
+		s.metrics.UserRegistered()
+	}
 	return user, nil
 }
 
@@ -76,5 +80,8 @@ func (s *Service) Login(ctx context.Context, email, password string) (string, er
 		return "", fmt.Errorf("sign token: %w", err)
 	}
 
+	if s.metrics != nil {
+		s.metrics.UserLoggedIn()
+	}
 	return signed, nil
 }

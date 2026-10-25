@@ -25,6 +25,10 @@ spec:
       app: wishlist-postgres
   template:
     metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9187"
+        prometheus.io/path: /metrics
       labels:
         app: wishlist-postgres
     spec:
@@ -71,6 +75,58 @@ spec:
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql
+        - name: postgres-exporter
+          image: quay.io/prometheuscommunity/postgres-exporter:v0.20.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - --log.format=json
+          ports:
+            - name: metrics
+              containerPort: 9187
+          env:
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: wishlist-config
+                  key: POSTGRES_DB
+            - name: DATA_SOURCE_URI
+              value: "localhost:5432/$(POSTGRES_DB)?sslmode=disable&connect_timeout=5"
+            - name: DATA_SOURCE_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: wishlist-config
+                  key: POSTGRES_USER
+            - name: DATA_SOURCE_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: wishlist-secrets
+                  key: POSTGRES_PASSWORD
+            - name: PG_EXPORTER_COLLECTION_TIMEOUT
+              value: 5s
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            tcpSocket:
+              port: metrics
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            runAsGroup: 65534
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
   volumeClaimTemplates:
     - metadata:
         name: postgres-data

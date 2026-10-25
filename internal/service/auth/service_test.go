@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"errors"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -10,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
+	metricsadapter "github.com/filimonq/wishlist-service/internal/adapter/out/metrics"
 	"github.com/filimonq/wishlist-service/internal/domain"
 	authsvc "github.com/filimonq/wishlist-service/internal/service/auth"
 	"github.com/filimonq/wishlist-service/internal/service/mocks"
@@ -89,10 +91,18 @@ func TestRegister(t *testing.T) {
 			// Arrange
 			repo := mocks.NewUserRepository(t)
 			tt.setupMock(repo)
-			svc := authsvc.New(repo, testJWTSecret)
+			metrics := metricsadapter.New()
+			svc := authsvc.New(repo, testJWTSecret, metrics)
 
 			// Act
 			user, err := svc.Register(context.Background(), tt.email, tt.password)
+			recorder := httptest.NewRecorder()
+			metrics.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/metrics", nil))
+			value := "0"
+			if err == nil {
+				value = "1"
+			}
+			assert.Contains(t, recorder.Body.String(), "wishlist_user_registrations_total "+value+"\n")
 
 			// Assert
 			switch {
@@ -176,10 +186,18 @@ func TestLogin(t *testing.T) {
 			// Arrange
 			repo := mocks.NewUserRepository(t)
 			tt.setupMock(t, repo)
-			svc := authsvc.New(repo, testJWTSecret)
+			metrics := metricsadapter.New()
+			svc := authsvc.New(repo, testJWTSecret, metrics)
 
 			// Act
 			token, err := svc.Login(context.Background(), tt.email, tt.password)
+			recorder := httptest.NewRecorder()
+			metrics.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/metrics", nil))
+			value := "0"
+			if err == nil {
+				value = "1"
+			}
+			assert.Contains(t, recorder.Body.String(), "wishlist_user_logins_total "+value+"\n")
 
 			// Assert
 			switch {

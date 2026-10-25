@@ -46,10 +46,26 @@ data:
       application_json:
         type: remap
         inputs: [application]
-        drop_on_error: true
+        drop_on_error: false
         source: |
           metadata = .kubernetes
-          . = object!(parse_json!(.message))
+          original_message = .message
+          event_time = .timestamp
+          parsed, parse_error = parse_json(original_message)
+          if parse_error == null && is_object(parsed) {
+            . = merge({"timestamp": event_time, "service.name": "wishlist-service"}, object!(parsed))
+          } else {
+            . = {
+              "message": original_message,
+              "timestamp": event_time,
+              "service.name": "wishlist-service",
+              "level": "WARN",
+              "log.parse_error": "expected a JSON object"
+            }
+            if parse_error != null {
+              ."log.parse_error" = parse_error
+            }
+          }
           ."k8s.pod.name" = metadata.pod_name
           ."k8s.namespace.name" = metadata.pod_namespace
           ."k8s.node.name" = metadata.pod_node_name

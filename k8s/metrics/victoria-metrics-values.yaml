@@ -1,0 +1,41 @@
+rbac:
+  create: false
+
+serviceAccount:
+  automountToken: false
+
+server:
+  fullnameOverride: victoria-metrics
+  mode: statefulSet
+  replicaCount: 1
+  retentionPeriod: 7d
+
+  persistentVolume:
+    enabled: true
+    storageClassName: standard
+    size: 2Gi
+
+  service:
+    type: ClusterIP
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  podSecurityContext:
+    enabled: true
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  securityContext:
+    enabled: true
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop: [ALL]

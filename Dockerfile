@@ -51,6 +51,6 @@ COPY --from=builder \
 
 USER appuser
 
-EXPOSE 8080
+EXPOSE 8080 9090
 
 ENTRYPOINT ["/app/wishlist-service"]

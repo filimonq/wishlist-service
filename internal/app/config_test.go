@@ -13,7 +13,11 @@ func TestNewConfig(t *testing.T) {
 		wantError string
 	}{
 		{name: "defaults"},
-		{name: "overrides", env: map[string]string{"HTTP_PORT": "9090", "MIGRATIONS_PATH": "/app/sql"}},
+		{name: "invalid metrics port", env: map[string]string{"METRICS_PORT": "abc"}, wantError: "METRICS_PORT"},
+		{name: "zero metrics port", env: map[string]string{"METRICS_PORT": "0"}, wantError: "METRICS_PORT"},
+		{name: "metrics port out of range", env: map[string]string{"METRICS_PORT": "65536"}, wantError: "METRICS_PORT"},
+		{name: "same ports", env: map[string]string{"METRICS_PORT": "8080"}, wantError: "METRICS_PORT"},
+		{name: "overrides", env: map[string]string{"HTTP_PORT": "9090", "METRICS_PORT": "9091", "MIGRATIONS_PATH": "/app/sql"}},
 		{name: "missing database", env: map[string]string{"DB_CONN": ""}, wantError: "DB_CONN"},
 		{name: "blank database", env: map[string]string{"DB_CONN": " \t"}, wantError: "DB_CONN"},
 		{name: "missing secret", env: map[string]string{"JWT_SECRET": ""}, wantError: "JWT_SECRET"},
@@ -30,6 +34,7 @@ func TestNewConfig(t *testing.T) {
 			t.Setenv("DB_CONN", database)
 			t.Setenv("JWT_SECRET", secret)
 			t.Setenv("HTTP_PORT", "")
+			t.Setenv("METRICS_PORT", "")
 			t.Setenv("MIGRATIONS_PATH", "")
 			for key, value := range tt.env {
 				t.Setenv(key, value)
@@ -47,11 +52,11 @@ func TestNewConfig(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			wantAddr, wantPath := ":8080", "migrations"
+			wantAddr, wantPath, wantMetrics := ":8080", "migrations", ":9090"
 			if tt.name == "overrides" {
-				wantAddr, wantPath = ":9090", "/app/sql"
+				wantAddr, wantPath, wantMetrics = ":9090", "/app/sql", ":9091"
 			}
-			if cfg.HTTPAddr != wantAddr || cfg.MigrationsPath != wantPath || cfg.DBConn != database || cfg.JWTSecret != secret {
+			if cfg.MetricsAddr != wantMetrics || cfg.HTTPAddr != wantAddr || cfg.MigrationsPath != wantPath || cfg.DBConn != database || cfg.JWTSecret != secret {
 				t.Fatal("configuration did not use environment values or defaults")
 			}
 		})

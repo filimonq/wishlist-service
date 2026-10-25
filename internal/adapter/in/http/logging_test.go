@@ -40,7 +40,7 @@ func TestRequestLogging(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var output bytes.Buffer
 			slog.SetDefault(slog.New(slog.NewJSONHandler(&output, nil)))
-			router := NewServer(nil, nil, nil, "").Router()
+			router := NewServer(nil, nil, nil, "", nil).Router()
 			router.GET("/test/:token", func(c *gin.Context) {
 				if tt.panics {
 					panic("test panic")

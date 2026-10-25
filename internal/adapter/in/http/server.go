@@ -1,6 +1,8 @@
 package httpadapter
 
 import (
+	"context"
+
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -13,6 +15,7 @@ type Server struct {
 	wishlists service.WishlistService
 	items     service.ItemService
 	jwtSecret string
+	pingDB    func(context.Context) error
 }
 
 func NewServer(
@@ -20,20 +23,25 @@ func NewServer(
 	wishlists service.WishlistService,
 	items service.ItemService,
 	jwtSecret string,
+	pingDB func(context.Context) error,
 ) *Server {
 	return &Server{
 		auth:      auth,
 		wishlists: wishlists,
 		items:     items,
 		jwtSecret: jwtSecret,
+		pingDB:    pingDB,
 	}
 }
 
-func (s *Server) Router() *gin.Engine {
+func (s *Server) Router(middleware ...gin.HandlerFunc) *gin.Engine {
 	r := gin.New()
 	r.Use(requestLogging())
+	r.Use(middleware...)
 	r.Use(gin.CustomRecoveryWithWriter(nil, recoverPanic))
 
+	r.GET("/livez", s.livez)
+	r.GET("/readyz", s.readyz)
 	registerFrontend(r)
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 

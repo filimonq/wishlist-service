@@ -13,10 +13,11 @@ import (
 
 type Service struct {
 	wishlists service.WishlistRepository
+	metrics   service.BusinessMetrics
 }
 
-func New(wishlists service.WishlistRepository) service.WishlistService {
-	return &Service{wishlists: wishlists}
+func New(wishlists service.WishlistRepository, metrics service.BusinessMetrics) service.WishlistService {
+	return &Service{wishlists: wishlists, metrics: metrics}
 }
 
 func (s *Service) Create(ctx context.Context, userID uuid.UUID, title, description string, eventDate time.Time) (*domain.Wishlist, error) {
@@ -37,6 +38,9 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, title, descripti
 		return nil, fmt.Errorf("create wishlist: %w", err)
 	}
 
+	if s.metrics != nil {
+		s.metrics.WishlistCreated()
+	}
 	return w, nil
 }
 
