@@ -37,3 +37,4 @@ internal/service/mocks/
 
 # local k8s secrets
 k8s/secret.local.yaml
+k8s/slo/prober.local.yaml

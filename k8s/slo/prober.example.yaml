@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wishlist-prober-config
+  namespace: wishlist
+data:
+  PROBE_URL: http://wishlist-service/api/v1/public/CHANGE_ME_PUBLIC_TOKEN
+  PROBE_EXPECTED_WISHLIST_ID: CHANGE_ME_WISHLIST_ID
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wishlist-prober
+  namespace: wishlist
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: wishlist-prober
+  template:
+    metadata:
+      labels:
+        app: wishlist-prober
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9115"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: prober
+          image: filimonq/wishlist-service:slo-v1
+          imagePullPolicy: Never
+          command: [/app/wishlist-prober]
+          envFrom:
+            - configMapRef:
+                name: wishlist-prober-config
+          ports:
+            - name: metrics
+              containerPort: 9115
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+          readinessProbe:
+            tcpSocket:
+              port: metrics
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: metrics
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]

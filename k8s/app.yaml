@@ -25,7 +25,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: wishlist-service
-          image: filimonq/wishlist-service:k8s-v1
+          image: filimonq/wishlist-service:slo-v1
           imagePullPolicy: Never
           ports:
             - name: http

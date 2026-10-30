@@ -7,6 +7,7 @@ import (
 	"time"
 
 	httpadapter "github.com/filimonq/wishlist-service/internal/adapter/in/http"
+	"github.com/filimonq/wishlist-service/internal/adapter/in/http/demo"
 	metricsadapter "github.com/filimonq/wishlist-service/internal/adapter/out/metrics"
 	"github.com/filimonq/wishlist-service/internal/adapter/out/repository"
 	authsvc "github.com/filimonq/wishlist-service/internal/service/auth"
@@ -24,6 +25,10 @@ type Dependencies struct {
 const databaseConnectTimeout = 5 * time.Second
 
 func NewDependencies(cfg *Config) (*Dependencies, error) {
+	demoConfig, err := demo.FromEnv()
+	if err != nil {
+		return nil, fmt.Errorf("configure demo middleware: %w", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), databaseConnectTimeout)
 	defer cancel()
 
@@ -46,7 +51,7 @@ func NewDependencies(cfg *Config) (*Dependencies, error) {
 	wishlistService := wishlistsvc.New(wishlistRepo, metrics)
 	itemService := itemsvc.New(wishlistRepo, itemRepo, metrics)
 
-	server := httpadapter.NewServer(authService, wishlistService, itemService, cfg.JWTSecret, db.Ping)
+	server := httpadapter.NewServer(authService, wishlistService, itemService, cfg.JWTSecret, db.Ping, demo.Middleware(demoConfig))
 
 	router := server.Router(httpadapter.RequestMetrics(metrics.ObserveHTTPRequest))
 

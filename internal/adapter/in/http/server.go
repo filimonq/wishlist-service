@@ -2,6 +2,7 @@ package httpadapter
 
 import (
 	"context"
+	"slices"
 
 	"github.com/gin-gonic/gin"
 	swaggerFiles "github.com/swaggo/files"
@@ -11,11 +12,12 @@ import (
 )
 
 type Server struct {
-	auth      service.AuthService
-	wishlists service.WishlistService
-	items     service.ItemService
-	jwtSecret string
-	pingDB    func(context.Context) error
+	auth                 service.AuthService
+	wishlists            service.WishlistService
+	items                service.ItemService
+	jwtSecret            string
+	pingDB               func(context.Context) error
+	publicReadMiddleware []gin.HandlerFunc
 }
 
 func NewServer(
@@ -24,13 +26,15 @@ func NewServer(
 	items service.ItemService,
 	jwtSecret string,
 	pingDB func(context.Context) error,
+	publicReadMiddleware ...gin.HandlerFunc,
 ) *Server {
 	return &Server{
-		auth:      auth,
-		wishlists: wishlists,
-		items:     items,
-		jwtSecret: jwtSecret,
-		pingDB:    pingDB,
+		auth:                 auth,
+		wishlists:            wishlists,
+		items:                items,
+		jwtSecret:            jwtSecret,
+		pingDB:               pingDB,
+		publicReadMiddleware: publicReadMiddleware,
 	}
 }
 
@@ -55,7 +59,7 @@ func (s *Server) Router(middleware ...gin.HandlerFunc) *gin.Engine {
 
 		public := v1.Group("/public/:token")
 		{
-			public.GET("", s.getPublicWishlist)
+			public.GET("", append(slices.Clone(s.publicReadMiddleware), s.getPublicWishlist)...)
 			public.POST("/items/:itemID/reserve", s.reserveItem)
 		}
 

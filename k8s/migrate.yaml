@@ -19,7 +19,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: migrate
-          image: filimonq/wishlist-service:k8s-v1
+          image: filimonq/wishlist-service:slo-v1
           imagePullPolicy: Never
           command: [/app/wishlist-migrate]
           env:

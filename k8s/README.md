@@ -20,19 +20,19 @@ minikube start -p sre --driver=docker --container-runtime=docker
 kubectl --context=sre get nodes
 
 eval "$(minikube -p sre docker-env -u)"
-docker build -t filimonq/wishlist-service:k8s-v1 .
+docker build -t filimonq/wishlist-service:slo-v1 .
 ```
 
 После успешной сборки загрузите образ в minikube и проверьте его наличие:
 
 ```bash
-minikube -p sre image load filimonq/wishlist-service:k8s-v1
+minikube -p sre image load --daemon=true filimonq/wishlist-service:slo-v1
 minikube -p sre image ls | grep wishlist-service
 ```
 
 Образ содержит backend, встроенный frontend и команду миграций. Здесь собираем его в Docker компьютера, затем явно загружаем в minikube. Команда `docker-env -u` убирает переключение на Docker minikube, если оно осталось в текущем терминале от предыдущих попыток.
 
-В выводе проверки должен быть образ `filimonq/wishlist-service:k8s-v1`. Если его нет или сборка завершилась ошибкой, дальше не переходите. В манифестах указан `imagePullPolicy: Never`, поэтому Kubernetes не скачает отсутствующий образ самостоятельно.
+В выводе проверки должен быть образ `filimonq/wishlist-service:slo-v1`. Если его нет или сборка завершилась ошибкой, дальше не переходите. В манифестах указан `imagePullPolicy: Never`, поэтому Kubernetes не скачает отсутствующий образ самостоятельно.
 
 ## 2. Секреты
 

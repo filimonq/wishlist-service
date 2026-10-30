@@ -16,12 +16,12 @@
 
 ```bash
 eval "$(minikube -p sre docker-env -u)"
-docker build -t filimonq/wishlist-service:k8s-v1 .
-minikube -p sre image load filimonq/wishlist-service:k8s-v1
+docker build -t filimonq/wishlist-service:slo-v1 .
+minikube -p sre image load --daemon=true filimonq/wishlist-service:slo-v1
 minikube -p sre image ls | grep wishlist-service
 ```
 
-Для этого локального стенда оставляем тег `k8s-v1`. Удаление namespace не удаляет образы, поэтому загрузка новой сборки обязательна.
+Для этого локального стенда оставляем тег `slo-v1`. Удаление namespace не удаляет образы, поэтому загрузка новой сборки обязательна.
 
 Если приложение ещё не запущено, поднимите его по [инструкции](../README.md), разделы 2–5. Если уже работает, после загрузки образа обновите настройки и перезапустите Pods:
 
@@ -32,7 +32,7 @@ kubectl --context=sre -n wishlist rollout status deployment/wishlist-service --t
 kubectl --context=sre -n wishlist logs deployment/wishlist-service --tail=5
 ```
 
-В логах должны быть JSON-записи с `service.version: k8s-v1` и `deployment.environment.name: minikube`. Эти значения задаются в `k8s/configmap.yaml`.
+В логах должны быть JSON-записи с `service.version: slo-v1` и `deployment.environment.name: minikube`. Эти значения задаются в `k8s/configmap.yaml`.
 
 ## Запуск
 

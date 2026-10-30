@@ -26,6 +26,12 @@ RUN CGO_ENABLED=0 go build \
         -o /wishlist-migrate \
         ./cmd/migrate
 
+RUN CGO_ENABLED=0 go build \
+        -ldflags="-s -w" \
+        -trimpath \
+        -o /wishlist-prober \
+        ./cmd/prober
+
 FROM scratch
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
@@ -48,6 +54,11 @@ COPY --from=builder \
      --chown=appuser:appgroup \
      --chmod=755 \
      /wishlist-migrate ./wishlist-migrate
+
+COPY --from=builder \
+     --chown=appuser:appgroup \
+     --chmod=755 \
+     /wishlist-prober ./wishlist-prober
 
 USER appuser
 
