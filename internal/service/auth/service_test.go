@@ -198,6 +198,15 @@ func TestLogin(t *testing.T) {
 				value = "1"
 			}
 			assert.Contains(t, recorder.Body.String(), "wishlist_user_logins_total "+value+"\n")
+			for _, reason := range []string{"invalid_credentials", "internal_error"} {
+				failureValue := "0"
+				if (reason == "invalid_credentials" && errors.Is(tt.wantErr, domain.ErrInvalidCredentials)) ||
+					(reason == "internal_error" && tt.wantAnyErr) {
+					failureValue = "1"
+				}
+				assert.Contains(t, recorder.Body.String(),
+					`wishlist_user_login_failures_total{reason="`+reason+`"} `+failureValue+"\n")
+			}
 
 			// Assert
 			switch {

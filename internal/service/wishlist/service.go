@@ -20,7 +20,13 @@ func New(wishlists service.WishlistRepository, metrics service.BusinessMetrics) 
 	return &Service{wishlists: wishlists, metrics: metrics}
 }
 
-func (s *Service) Create(ctx context.Context, userID uuid.UUID, title, description string, eventDate time.Time) (*domain.Wishlist, error) {
+func (s *Service) Create(ctx context.Context, userID uuid.UUID, title, description string, eventDate time.Time) (result *domain.Wishlist, err error) {
+	defer func() {
+		if err != nil && s.metrics != nil {
+			s.metrics.WishlistCreationFailed(err)
+		}
+	}()
+
 	if !eventDate.After(time.Now()) {
 		return nil, domain.ErrEventDateInPast
 	}
@@ -34,7 +40,7 @@ func (s *Service) Create(ctx context.Context, userID uuid.UUID, title, descripti
 		PublicToken: uuid.New(),
 	}
 
-	if err := s.wishlists.Create(ctx, w); err != nil {
+	if err = s.wishlists.Create(ctx, w); err != nil {
 		return nil, fmt.Errorf("create wishlist: %w", err)
 	}
 

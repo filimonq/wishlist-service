@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wishlist-alertmanager-config
+  namespace: monitoring
+type: Opaque
+stringData:
+  bot-token: "CHANGE_ME_BOT_TOKEN"
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 1m
+    route:
+      receiver: telegram
+      group_by: [cluster, namespace, alertname]
+      group_wait: 10s
+      group_interval: 30s
+      repeat_interval: 4h
+    receivers:
+      - name: telegram
+        telegram_configs:
+          - bot_token_file: /etc/alertmanager/bot-token
+            chat_id: CHANGE_ME_CHAT_ID
+            send_resolved: true
+            parse_mode: ""
+            message: |
+              {{ .Status | toUpper }}: {{ .CommonLabels.alertname }}
+              {{ range .Alerts }}{{ .Annotations.summary }}
+              {{ .Annotations.description }}
+              {{ if .Labels.pod }}Pod: {{ .Labels.pod }}{{ end }}
+              {{ end }}

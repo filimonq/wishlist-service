@@ -1,6 +1,6 @@
 # Метрики в minikube
 
-Команды выполняются из корня `wishlist-service`. Профиль minikube — `sre`, namespace мониторинга — `monitoring`.
+Команды — из корня `wishlist-service`. Кластер — `sre`, мониторинг — в namespace `monitoring`.
 
 | Файл | Назначение |
 |---|---|
@@ -8,11 +8,11 @@
 | `vmagent-values.yaml` | Настройки сборщика и обнаружения подов |
 | `vmagent-rbac.yaml` | Права сборщика на чтение подов в namespace `wishlist` |
 
-Для общего запуска сначала пересоберите и загрузите образ приложения, затем выполните шаги запуска из [основной инструкции](../README.md). Примените актуальные `configmap.yaml`, `postgres.yaml` и `app.yaml`: в них добавлены порт метрик, экспортер БД и аннотации. Старый образ без нового Go-кода метрики не отдаст. Затем установите VictoriaMetrics и vmagent по разделам ниже.
+Сначала нужно [поднять приложение](../README.md) с актуальным образом и манифестами. Дальше — установить VictoriaMetrics и vmagent по командам ниже.
 
 ## VictoriaMetrics
 
-VictoriaMetrics хранит временные ряды. Здесь запускается один экземпляр с диском 2 GiB и сроком хранения 7 дней. Сервис доступен внутри кластера на порту `8428`, с компьютера — через `port-forward`.
+VictoriaMetrics хранит метрики. Здесь один экземпляр, диск 2 GiB, хранение 7 дней, порт `8428`.
 
 Используется официальный чарт `victoria-metrics-single` версии `0.49.0`. Версия VictoriaMetrics задаётся самим чартом — `v1.154.0`. Настройки для minikube находятся в `victoria-metrics-values.yaml`.
 
@@ -43,7 +43,7 @@ helm upgrade --install vm-single vm/victoria-metrics-single \
 kubectl --context=sre -n monitoring get pods,services,pvc
 ```
 
-Дождитесь `Running` и `1/1` у Pod, `Bound` у PVC. Первый запуск может занять время из-за скачивания образа. Если установка завершилась по таймауту:
+У Pod должно быть `1/1 Running`, у PVC — `Bound`. Если Helm не дождался запуска, посмотреть причину:
 
 ```bash
 kubectl --context=sre -n monitoring get pods,pvc
@@ -53,19 +53,19 @@ kubectl --context=sre -n monitoring logs statefulset/victoria-metrics --tail=50
 
 ### 3. Проверка и UI
 
-В отдельном терминале оставьте работающим:
+В отдельном терминале:
 
 ```bash
 kubectl --context=sre -n monitoring port-forward service/victoria-metrics 8428:8428
 ```
 
-Откройте [http://localhost:8428/vmui/](http://localhost:8428/vmui/). Проверить доступность можно из другого терминала:
+UI — [localhost:8428/vmui/](http://localhost:8428/vmui/). Проверить, что сервер отвечает:
 
 ```bash
 curl --fail --show-error http://localhost:8428/health
 ```
 
-До запуска vmagent метрики приложения в UI отсутствуют: сам по себе сервер хранения их не забирает.
+Метрики появятся после запуска vmagent: VictoriaMetrics сама их у приложения не забирает.
 
 ### Остановка
 
@@ -79,11 +79,11 @@ PVC StatefulSet сохраняется после удаления релиза.
 
 ## postgres-exporter
 
-В `k8s/postgres.yaml` добавлен второй контейнер с [postgres-exporter](https://github.com/prometheus-community/postgres_exporter/tree/v0.20.0) версии `v0.20.0`. Он подключается к PostgreSQL через `localhost:5432` и отдаёт статистику БД на `:9187/metrics`. Диск PostgreSQL экспортеру не монтируется.
+В Pod PostgreSQL есть второй контейнер — [postgres-exporter](https://github.com/prometheus-community/postgres_exporter/tree/v0.20.0) `v0.20.0`. Он читает статистику БД через `localhost:5432` и отдаёт её на `:9187/metrics`.
 
-Для подключения используется текущий пользователь БД из ConfigMap `wishlist-config`, пароль берётся из Secret `wishlist-secrets`. Они должны быть созданы по [основной инструкции](../README.md). Переменная `POSTGRES_DB` объявлена перед `DATA_SOURCE_URI`, чтобы Kubernetes подставил имя БД в адрес подключения.
+Пользователь и имя БД берутся из ConfigMap `wishlist-config`, пароль — из Secret `wishlist-secrets`.
 
-При общем запуске примените обновлённый StatefulSet:
+Запуск или обновление:
 
 ```bash
 kubectl --context=sre apply -f k8s/postgres.yaml
@@ -92,7 +92,7 @@ kubectl --context=sre -n wishlist get pods -l app=wishlist-postgres
 kubectl --context=sre -n wishlist logs statefulset/postgres -c postgres-exporter --tail=50
 ```
 
-У Pod `postgres-0` ожидается `READY 2/2`. Для проверки метрик оставьте в отдельном терминале:
+У `postgres-0` должно быть `READY 2/2`. Чтобы посмотреть исходные метрики, в отдельном терминале:
 
 ```bash
 kubectl --context=sre -n wishlist port-forward pod/postgres-0 9187:9187
@@ -104,9 +104,21 @@ kubectl --context=sre -n wishlist port-forward pod/postgres-0 9187:9187
 curl --fail --show-error http://localhost:9187/metrics
 ```
 
-В выдаче должны быть `pg_up 1`, `pg_stat_database_xact_commit` и другие метрики PostgreSQL. `pg_up 0` означает, что экспортер доступен, но не смог подключиться к БД. Его probes проверяют только доступность HTTP-порта; состояние соединения с PostgreSQL проверяется по `pg_up`.
+В ответе должны быть `pg_up 1` и статистика БД, например `pg_stat_database_xact_commit`.
 
-Порт `9187` не публикуется через NodePort. Метрики забирает vmagent напрямую с IP пода.
+Когда vmagent уже работает, в [vmui](http://localhost:8428/vmui/) можно проверить два показателя. Запускать по одному:
+
+```promql
+last_over_time(up{namespace="wishlist", app="wishlist-postgres"}[30s])
+```
+
+```promql
+last_over_time(pg_up{namespace="wishlist", app="wishlist-postgres"}[30s])
+```
+
+`up=1` — vmagent забрал метрики экспортера. `pg_up=1` — экспортер смог получить данные из PostgreSQL. Если `up=1`, а `pg_up=0`, смотреть подключение к БД и логи экспортера. Если результат пустой, свежих данных за 30 секунд нет.
+
+TCP-пробы проверяют только порт экспортера. Это не проверка подключения к БД. Порт `9187` наружу не опубликован — vmagent ходит прямо на IP Pod.
 
 ## vmagent и service discovery
 
@@ -118,9 +130,9 @@ wishlist-service:9090/metrics ─┐
 postgres-exporter:9187/metrics ┘
 ```
 
-Service discovery — автоматическое обнаружение целей сбора через Kubernetes API. vmagent следит за подами в namespace `wishlist` и выбирает запущенные поды с аннотацией `prometheus.io/scrape: "true"`. Аннотации `prometheus.io/port` и `prometheus.io/path` указывают порт и путь метрик. Они находятся в `spec.template.metadata.annotations` у Deployment приложения и StatefulSet PostgreSQL, поэтому автоматически попадают на каждый новый Pod.
+vmagent находит Pods через Kubernetes API. В namespace `wishlist` он выбирает Running Pods с `prometheus.io/scrape: "true"`. Порт и путь берёт из аннотаций `prometheus.io/port` и `prometheus.io/path`. Аннотации записаны в шаблонах Pods, поэтому новые реплики тоже обнаруживаются автоматически.
 
-Фильтр оставляет только порт контейнера, совпадающий с аннотацией: `9090` у приложения и `9187` у экспортера. Это исключает повторный сбор с одного Pod и запросы метрик к порту БД `5432` или API `8080`. Каждая реплика приложения собирается отдельно; после масштабирования vmagent сам обнаружит новые поды. В метрики добавляются лейблы `namespace`, `pod`, `container` и `app`.
+Фильтр оставляет нужный порт: `9090` у приложения, `9187` у экспортера. Каждая реплика собирается отдельно. К метрикам добавляются labels `namespace`, `pod`, `container` и `app`.
 
 `Role` и `RoleBinding` разрешают ServiceAccount `monitoring/vmagent` читать поды только в `wishlist`. Доступ к Secret и права на изменение ресурсов ему не выдаются.
 
@@ -151,7 +163,7 @@ kubectl --context=sre -n monitoring get pods,services,pvc
 kubectl --context=sre -n monitoring port-forward service/vmagent 8429:8429
 ```
 
-Откройте [http://localhost:8429/targets](http://localhost:8429/targets). Ожидается по одной цели для каждой реплики приложения и одна для postgres-exporter. У всех состояние `UP`. Обнаружение новых подов и первый сбор могут занять некоторое время.
+Открыть [localhost:8429/targets](http://localhost:8429/targets). Там должна быть каждая реплика приложения и postgres-exporter со статусом `UP`. После масштабирования дать сборщику время найти новые Pods.
 
 При работающем `port-forward` VictoriaMetrics на `8428`:
 
@@ -172,11 +184,42 @@ go_goroutines{app="wishlist-service"}
 wishlist_user_registrations_total{app="wishlist-service"}
 wishlist_user_logins_total{app="wishlist-service"}
 wishlist_wishlists_created_total{app="wishlist-service"}
+wishlist_items_created_total{app="wishlist-service"}
 wishlist_items_reserved_total{app="wishlist-service"}
 pg_stat_database_xact_commit{app="wishlist-postgres"}
 ```
 
 Выполняйте запросы по одному. После действий в UI приложения дождитесь следующего сбора и проверьте рост соответствующих счётчиков.
+
+### Ошибки бизнес-операций и несколько реплик
+
+`wishlist_user_login_failures_total{reason}` считает неудачные входы: `invalid_credentials` и `internal_error`.
+
+`wishlist_item_reservation_failures_total{reason}` считает отказы бронирования: `wishlist_not_found`, `item_not_found`, `item_not_in_wishlist`, `already_reserved`, `internal_error`.
+
+Одна неудачная операция — одно увеличение счётчика. Неверный JWT, JSON или UUID, отклонённые раньше вызова сервиса, видны в HTTP-метриках. ID пользователей и тексты ошибок в labels не попадают.
+
+`wishlist_items_created_total` — успешно добавленные подарки. По нему и числу созданных вишлистов можно смотреть общую активность. Чтобы понять, кто создал вишлист и ушёл без подарков, нужны связанные события пользователей.
+
+Ошибки создания: `wishlist_wishlist_creation_failures_total{reason}` (`invalid_event_date`, `internal_error`) и `wishlist_item_creation_failures_total{reason}` (`invalid_priority`, `wishlist_not_found`, `access_denied`, `internal_error`). Алерты на них — в [отдельной инструкции](../alerting/README.md).
+
+У каждой реплики свой Counter, после перезапуска он обнуляется. Число событий за 5 минут по всем репликам:
+
+```promql
+sum(increase(wishlist_items_reserved_total{namespace="wishlist", app="wishlist-service"}[5m]))
+```
+
+Число ошибок по причинам за тот же период:
+
+```promql
+sum by (reason) (increase(wishlist_user_login_failures_total{namespace="wishlist", app="wishlist-service"}[5m]))
+```
+
+```promql
+sum by (reason) (increase(wishlist_item_reservation_failures_total{namespace="wishlist", app="wishlist-service"}[5m]))
+```
+
+Для расчёта нужны значения до и после события. Пустой результат не означает, что ошибок нет. Проверка самого пробера — в [инструкции SLO](../slo/README.md#проверка-пробера).
 
 Для диагностики:
 

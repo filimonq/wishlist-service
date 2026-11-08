@@ -20,7 +20,13 @@ func New(wishlists service.WishlistRepository, items service.ItemRepository, met
 	return &Service{wishlists: wishlists, items: items, metrics: metrics}
 }
 
-func (s *Service) Create(ctx context.Context, userID, wishlistID uuid.UUID, name, description, url string, priority domain.Priority) (*domain.Item, error) {
+func (s *Service) Create(ctx context.Context, userID, wishlistID uuid.UUID, name, description, url string, priority domain.Priority) (result *domain.Item, err error) {
+	defer func() {
+		if err != nil && s.metrics != nil {
+			s.metrics.ItemCreationFailed(err)
+		}
+	}()
+
 	if !priority.Valid() {
 		return nil, domain.ErrInvalidPriority
 	}
@@ -47,6 +53,9 @@ func (s *Service) Create(ctx context.Context, userID, wishlistID uuid.UUID, name
 		return nil, fmt.Errorf("create item: %w", err)
 	}
 
+	if s.metrics != nil {
+		s.metrics.ItemCreated()
+	}
 	return item, nil
 }
 
@@ -140,7 +149,13 @@ func (s *Service) Delete(ctx context.Context, userID, wishlistID, itemID uuid.UU
 	return nil
 }
 
-func (s *Service) Reserve(ctx context.Context, token uuid.UUID, itemID uuid.UUID) error {
+func (s *Service) Reserve(ctx context.Context, token uuid.UUID, itemID uuid.UUID) (err error) {
+	defer func() {
+		if err != nil && s.metrics != nil {
+			s.metrics.ItemReservationFailed(err)
+		}
+	}()
+
 	w, err := s.wishlists.GetByPublicToken(ctx, token)
 	if err != nil {
 		return fmt.Errorf("get wishlist by token: %w", err)

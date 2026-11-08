@@ -44,6 +44,8 @@ func TestCreate(t *testing.T) {
 		setupMock  func(repo *mocks.WishlistRepository)
 		wantErr    error
 		wantAnyErr bool
+		eventDate  time.Time
+		reason     string
 	}{
 		{
 			name: "success",
@@ -59,6 +61,14 @@ func TestCreate(t *testing.T) {
 					Return(errDB)
 			},
 			wantAnyErr: true,
+			reason:     "internal_error",
+		},
+		{
+			name:      "event date in past",
+			setupMock: func(_ *mocks.WishlistRepository) {},
+			eventDate: time.Now().Add(-time.Hour),
+			wantErr:   domain.ErrEventDateInPast,
+			reason:    "invalid_event_date",
 		},
 	}
 
@@ -73,7 +83,11 @@ func TestCreate(t *testing.T) {
 			svc := wishlistsvc.New(repo, metrics)
 
 			// Act
-			w, err := svc.Create(context.Background(), testUserID, "Birthday", "My birthday wishlist", testEventDate)
+			eventDate := tt.eventDate
+			if eventDate.IsZero() {
+				eventDate = testEventDate
+			}
+			w, err := svc.Create(context.Background(), testUserID, "Birthday", "My birthday wishlist", eventDate)
 			recorder := httptest.NewRecorder()
 			metrics.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/metrics", nil))
 			value := "0"
@@ -81,6 +95,14 @@ func TestCreate(t *testing.T) {
 				value = "1"
 			}
 			assert.Contains(t, recorder.Body.String(), "wishlist_wishlists_created_total "+value+"\n")
+			for _, reason := range []string{"invalid_event_date", "internal_error"} {
+				failureValue := "0"
+				if reason == tt.reason {
+					failureValue = "1"
+				}
+				assert.Contains(t, recorder.Body.String(),
+					`wishlist_wishlist_creation_failures_total{reason="`+reason+`"} `+failureValue+"\n")
+			}
 
 			// Assert
 			switch {

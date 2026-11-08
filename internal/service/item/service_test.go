@@ -54,40 +54,67 @@ func TestCreate(t *testing.T) {
 		setupMock  func(wl *mocks.WishlistRepository, it *mocks.ItemRepository)
 		wantErr    error
 		wantAnyErr bool
+		priority   domain.Priority
+		reason     string
 	}{
 		{
-			name:   "success",
-			userID: testUserID,
+			name:     "success",
+			userID:   testUserID,
+			priority: domain.Priority(3),
 			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
 				wl.On("GetByID", mock.Anything, testWishlistID).Return(newWishlist(), nil)
 				it.On("Create", mock.Anything, mock.AnythingOfType("*domain.Item")).Return(nil)
 			},
 		},
 		{
-			name:   "wishlist not found",
-			userID: testUserID,
+			name:     "wishlist not found",
+			userID:   testUserID,
+			priority: domain.Priority(3),
 			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
 				wl.On("GetByID", mock.Anything, testWishlistID).
 					Return(nil, domain.ErrWishlistNotFound)
 			},
 			wantErr: domain.ErrWishlistNotFound,
+			reason:  "wishlist_not_found",
 		},
 		{
-			name:   "access denied",
-			userID: otherUserID,
+			name:     "access denied",
+			userID:   otherUserID,
+			priority: domain.Priority(3),
 			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
 				wl.On("GetByID", mock.Anything, testWishlistID).Return(newWishlist(), nil)
 			},
 			wantErr: domain.ErrWishlistAccessDenied,
+			reason:  "access_denied",
 		},
 		{
-			name:   "repository create error",
-			userID: testUserID,
+			name:     "repository create error",
+			userID:   testUserID,
+			priority: domain.Priority(3),
 			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
 				wl.On("GetByID", mock.Anything, testWishlistID).Return(newWishlist(), nil)
 				it.On("Create", mock.Anything, mock.AnythingOfType("*domain.Item")).Return(errDB)
 			},
 			wantAnyErr: true,
+			reason:     "internal_error",
+		},
+		{
+			name:      "invalid priority",
+			userID:    testUserID,
+			priority:  domain.Priority(0),
+			setupMock: func(_ *mocks.WishlistRepository, _ *mocks.ItemRepository) {},
+			wantErr:   domain.ErrInvalidPriority,
+			reason:    "invalid_priority",
+		},
+		{
+			name:     "wishlist repository error",
+			userID:   testUserID,
+			priority: domain.Priority(3),
+			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
+				wl.On("GetByID", mock.Anything, testWishlistID).Return(nil, errDB)
+			},
+			wantAnyErr: true,
+			reason:     "internal_error",
 		},
 	}
 
@@ -99,10 +126,26 @@ func TestCreate(t *testing.T) {
 			wlRepo := mocks.NewWishlistRepository(t)
 			itRepo := mocks.NewItemRepository(t)
 			tt.setupMock(wlRepo, itRepo)
-			svc := itemsvc.New(wlRepo, itRepo, nil)
+			metrics := metricsadapter.New()
+			svc := itemsvc.New(wlRepo, itRepo, metrics)
 
 			// Act
-			item, err := svc.Create(context.Background(), tt.userID, testWishlistID, "PS5", "", "", domain.Priority(3))
+			item, err := svc.Create(context.Background(), tt.userID, testWishlistID, "PS5", "", "", tt.priority)
+			recorder := httptest.NewRecorder()
+			metrics.Handler().ServeHTTP(recorder, httptest.NewRequest("GET", "/metrics", nil))
+			value := "0"
+			if err == nil {
+				value = "1"
+			}
+			assert.Contains(t, recorder.Body.String(), "wishlist_items_created_total "+value+"\n")
+			for _, reason := range []string{"invalid_priority", "wishlist_not_found", "access_denied", "internal_error"} {
+				failureValue := "0"
+				if reason == tt.reason {
+					failureValue = "1"
+				}
+				assert.Contains(t, recorder.Body.String(),
+					`wishlist_item_creation_failures_total{reason="`+reason+`"} `+failureValue+"\n")
+			}
 
 			// Assert
 			switch {
@@ -313,6 +356,7 @@ func TestReserve(t *testing.T) {
 		name      string
 		setupMock func(wl *mocks.WishlistRepository, it *mocks.ItemRepository)
 		wantErr   error
+		reason    string
 	}{
 		{
 			name: "success",
@@ -329,6 +373,7 @@ func TestReserve(t *testing.T) {
 					Return(nil, domain.ErrWishlistNotFound)
 			},
 			wantErr: domain.ErrWishlistNotFound,
+			reason:  "wishlist_not_found",
 		},
 		{
 			name: "item not in wishlist",
@@ -339,6 +384,7 @@ func TestReserve(t *testing.T) {
 				it.On("GetByID", mock.Anything, testItemID).Return(wrongItem, nil)
 			},
 			wantErr: domain.ErrItemNotInWishlist,
+			reason:  "item_not_in_wishlist",
 		},
 		{
 			name: "already reserved",
@@ -348,6 +394,43 @@ func TestReserve(t *testing.T) {
 				it.On("Reserve", mock.Anything, testItemID).Return(domain.ErrItemAlreadyReserved)
 			},
 			wantErr: domain.ErrItemAlreadyReserved,
+			reason:  "already_reserved",
+		},
+		{
+			name: "item not found",
+			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
+				wl.On("GetByPublicToken", mock.Anything, testPublicToken).Return(newWishlist(), nil)
+				it.On("GetByID", mock.Anything, testItemID).Return(nil, domain.ErrItemNotFound)
+			},
+			wantErr: domain.ErrItemNotFound,
+			reason:  "item_not_found",
+		},
+		{
+			name: "wishlist repository error",
+			setupMock: func(wl *mocks.WishlistRepository, _ *mocks.ItemRepository) {
+				wl.On("GetByPublicToken", mock.Anything, testPublicToken).Return(nil, errDB)
+			},
+			wantErr: errDB,
+			reason:  "internal_error",
+		},
+		{
+			name: "item repository error",
+			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
+				wl.On("GetByPublicToken", mock.Anything, testPublicToken).Return(newWishlist(), nil)
+				it.On("GetByID", mock.Anything, testItemID).Return(nil, errDB)
+			},
+			wantErr: errDB,
+			reason:  "internal_error",
+		},
+		{
+			name: "reserve repository error",
+			setupMock: func(wl *mocks.WishlistRepository, it *mocks.ItemRepository) {
+				wl.On("GetByPublicToken", mock.Anything, testPublicToken).Return(newWishlist(), nil)
+				it.On("GetByID", mock.Anything, testItemID).Return(newItem(), nil)
+				it.On("Reserve", mock.Anything, testItemID).Return(errDB)
+			},
+			wantErr: errDB,
+			reason:  "internal_error",
 		},
 	}
 
@@ -371,6 +454,14 @@ func TestReserve(t *testing.T) {
 				value = "1"
 			}
 			assert.Contains(t, recorder.Body.String(), "wishlist_items_reserved_total "+value+"\n")
+			for _, reason := range []string{"wishlist_not_found", "item_not_found", "item_not_in_wishlist", "already_reserved", "internal_error"} {
+				failureValue := "0"
+				if tt.reason == reason {
+					failureValue = "1"
+				}
+				assert.Contains(t, recorder.Body.String(),
+					`wishlist_item_reservation_failures_total{reason="`+reason+`"} `+failureValue+"\n")
+			}
 
 			// Assert
 			if tt.wantErr != nil {

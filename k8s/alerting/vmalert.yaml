@@ -1,0 +1,89 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wishlist-metrics-vmalert
+  namespace: monitoring
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: wishlist-metrics-vmalert
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - name: vmalert
+          image: victoriametrics/vmalert:v1.152.0
+          imagePullPolicy: IfNotPresent
+          args:
+            - -rule=/etc/vmalert/alerts.yaml
+            - -datasource.url=http://victoria-metrics:8428
+            - -notifier.url=http://wishlist-alertmanager:9093
+            - -external.label=cluster=sre
+            - -rule.evalDelay=5s
+            - -httpListenAddr=:8880
+            - -loggerFormat=json
+            - -loggerOutput=stdout
+          env:
+            - name: BUSINESS_FAILURE_THRESHOLD
+              value: "3"
+            - name: MISSING_GIFT_THRESHOLD
+              value: "5"
+            - name: GOROUTINES_THRESHOLD
+              value: "100"
+            - name: HEAP_BYTES_THRESHOLD
+              value: "67108864"
+          ports:
+            - name: http
+              containerPort: 8880
+          resources:
+            requests:
+              cpu: 25m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: rules
+              mountPath: /etc/vmalert
+              readOnly: true
+      volumes:
+        - name: rules
+          configMap:
+            name: wishlist-metric-alert-rules
+  selector:
+    matchLabels:
+      app: wishlist-metrics-vmalert
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wishlist-metrics-vmalert
+  namespace: monitoring
+spec:
+  selector:
+    app: wishlist-metrics-vmalert
+  ports:
+    - name: http
+      port: 8880
+      targetPort: http

@@ -1,0 +1,94 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wishlist-metric-alert-rules
+  namespace: monitoring
+data:
+  alerts.yaml: |
+    groups:
+      - name: wishlist-business
+        type: prometheus
+        interval: 15s
+        rules:
+          - alert: WishlistCreationFailures
+            expr: |
+              sum by (namespace) (increase(wishlist_wishlist_creation_failures_total{
+                namespace="wishlist", app="wishlist-service", reason="internal_error"
+              }[5m])) >= %{BUSINESS_FAILURE_THRESHOLD}
+            for: 1m
+            labels:
+              severity: warning
+              service: wishlist-service
+              category: business
+            annotations:
+              summary: Не удаётся создавать вишлисты
+              description: 'За 5 минут зарегистрировано {{ $value | printf "%.1f" }} внутренних ошибок создания. Проверьте логи backend и доступность PostgreSQL.'
+          - alert: GiftCreationFailures
+            expr: |
+              sum by (namespace) (increase(wishlist_item_creation_failures_total{
+                namespace="wishlist", app="wishlist-service", reason="internal_error"
+              }[5m])) >= %{BUSINESS_FAILURE_THRESHOLD}
+            for: 1m
+            labels:
+              severity: warning
+              service: wishlist-service
+              category: business
+            annotations:
+              summary: Не удаётся добавлять подарки
+              description: 'За 5 минут зарегистрировано {{ $value | printf "%.1f" }} внутренних ошибок создания подарка. Проверьте ошибки репозитория и PostgreSQL.'
+          - alert: GiftReservationFailures
+            expr: |
+              sum by (namespace) (increase(wishlist_item_reservation_failures_total{
+                namespace="wishlist", app="wishlist-service", reason="internal_error"
+              }[5m])) >= %{BUSINESS_FAILURE_THRESHOLD}
+            for: 1m
+            labels:
+              severity: warning
+              service: wishlist-service
+              category: business
+            annotations:
+              summary: Не удаётся бронировать подарки
+              description: 'За 5 минут зарегистрировано {{ $value | printf "%.1f" }} внутренних ошибок бронирования. Проверьте логи backend и PostgreSQL.'
+          - alert: MissingGiftReservations
+            expr: |
+              sum by (namespace) (increase(wishlist_item_reservation_failures_total{
+                namespace="wishlist", app="wishlist-service", reason="item_not_found"
+              }[5m])) >= %{MISSING_GIFT_THRESHOLD}
+            for: 1m
+            labels:
+              severity: warning
+              service: wishlist-service
+              category: business
+            annotations:
+              summary: Повторяются попытки брони отсутствующих подарков
+              description: 'За 5 минут зарегистрировано {{ $value | printf "%.1f" }} отказов item_not_found. Проверьте публичные ссылки, клиент и подозрительные запросы.'
+      - name: wishlist-runtime
+        type: prometheus
+        interval: 15s
+        rules:
+          - alert: WishlistHighGoroutines
+            expr: |
+              (go_goroutines{namespace="wishlist", app="wishlist-service"} > %{GOROUTINES_THRESHOLD})
+              and on (namespace, pod)
+              (up{namespace="wishlist", app="wishlist-service"} == 1)
+            for: 2m
+            labels:
+              severity: warning
+              service: wishlist-service
+              category: runtime
+            annotations:
+              summary: Повышенное число горутин backend
+              description: 'В Pod {{ $labels.pod }} число горутин {{ $value }} превышает %{GOROUTINES_THRESHOLD} в течение 2 минут. Проверьте нагрузку и длительные операции.'
+          - alert: WishlistHighHeap
+            expr: |
+              (go_memstats_heap_alloc_bytes{namespace="wishlist", app="wishlist-service"} > %{HEAP_BYTES_THRESHOLD})
+              and on (namespace, pod)
+              (up{namespace="wishlist", app="wishlist-service"} == 1)
+            for: 2m
+            labels:
+              severity: warning
+              service: wishlist-service
+              category: runtime
+            annotations:
+              summary: Повышенный объём выделенной Go heap
+              description: 'В Pod {{ $labels.pod }} Go heap занимает {{ $value | humanize1024 }}B дольше 2 минут. Проверьте рост памяти и нагрузку; heap не равна всей памяти процесса.'

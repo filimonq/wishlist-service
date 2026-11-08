@@ -38,3 +38,5 @@ internal/service/mocks/
 # local k8s secrets
 k8s/secret.local.yaml
 k8s/slo/prober.local.yaml
+k8s/alerting/alertmanager.local.yaml
+k8s/alerting/.alertmanager-*

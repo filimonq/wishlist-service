@@ -58,6 +58,11 @@ type ItemRepository interface {
 type BusinessMetrics interface {
 	UserRegistered()
 	UserLoggedIn()
+	UserLoginFailed(err error)
 	WishlistCreated()
+	WishlistCreationFailed(err error)
+	ItemCreated()
+	ItemCreationFailed(err error)
 	ItemReserved()
+	ItemReservationFailed(err error)
 }

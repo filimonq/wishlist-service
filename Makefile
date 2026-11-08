@@ -1,5 +1,11 @@
-.PHONY: build release up scale migrate down logs lint test swag k6 mocks check-version check-release
+.PHONY: build release up scale migrate down logs lint test swag k6 mocks check-version check-release prober-prepare alerting-config
 .DEFAULT_GOAL := up
+
+prober-prepare:
+	sh k8s/slo/prepare.sh
+
+alerting-config:
+	python3 k8s/alerting/configure.py
 
 VERSION ?=
 REPLICAS ?= 2

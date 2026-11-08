@@ -56,7 +56,13 @@ func (s *Service) Register(ctx context.Context, email, password string) (*domain
 	return user, nil
 }
 
-func (s *Service) Login(ctx context.Context, email, password string) (string, error) {
+func (s *Service) Login(ctx context.Context, email, password string) (tokenString string, err error) {
+	defer func() {
+		if err != nil && s.metrics != nil {
+			s.metrics.UserLoginFailed(err)
+		}
+	}()
+
 	user, err := s.users.GetByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {

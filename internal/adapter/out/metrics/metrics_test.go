@@ -21,7 +21,7 @@ func TestMetricsEndpoint(t *testing.T) {
 	assert.Contains(t, recorder.Body.String(), "process_cpu_seconds_total ")
 	for _, name := range []string{
 		"wishlist_user_registrations_total", "wishlist_user_logins_total",
-		"wishlist_wishlists_created_total", "wishlist_items_reserved_total",
+		"wishlist_wishlists_created_total", "wishlist_items_reserved_total", "wishlist_items_created_total",
 	} {
 		assert.Contains(t, recorder.Body.String(), name+" 0\n")
 	}
