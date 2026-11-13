@@ -1,0 +1,77 @@
+fullnameOverride: grafana
+replicas: 1
+
+deploymentStrategy:
+  type: Recreate
+
+rbac:
+  create: false
+
+automountServiceAccountToken: false
+serviceAccount:
+  automountServiceAccountToken: false
+
+service:
+  type: ClusterIP
+  port: 80
+
+persistence:
+  enabled: true
+  storageClassName: standard
+  accessModes: [ReadWriteOnce]
+  size: 1Gi
+
+initChownData:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+testFramework:
+  enabled: false
+
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: default
+        orgId: 1
+        folder: SRE
+        folderUid: wishlist-sre
+        type: file
+        disableDeletion: false
+        allowUiUpdates: true
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards/default
+
+dashboardsConfigMaps:
+  default: grafana-dashboards
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: VictoriaMetrics
+        uid: victoria-metrics
+        type: prometheus
+        access: proxy
+        url: http://victoria-metrics:8428
+        isDefault: true
+        editable: false
+        jsonData:
+          httpMethod: POST
+          timeInterval: 15s
+
+grafana.ini:
+  analytics:
+    reporting_enabled: false
+    check_for_updates: false
+    check_for_plugin_updates: false
+  users:
+    allow_sign_up: false
