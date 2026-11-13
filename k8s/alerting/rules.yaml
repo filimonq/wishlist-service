@@ -62,6 +62,116 @@ data:
             annotations:
               summary: Повторяются попытки брони отсутствующих подарков
               description: 'За 5 минут зарегистрировано {{ $value | printf "%.1f" }} отказов item_not_found. Проверьте публичные ссылки, клиент и подозрительные запросы.'
+      - name: wishlist-availability
+        type: prometheus
+        interval: 15s
+        rules:
+          - alert: WishlistUnavailable
+            expr: |
+              (max(last_over_time(wishlist_probe_success{namespace="wishlist", app="wishlist-prober"}[1m])) == 0)
+              and
+              (max(last_over_time(up{namespace="wishlist", app="wishlist-prober"}[1m])) == 1)
+              and
+              (time() - max(last_over_time(wishlist_probe_last_check_timestamp_seconds{
+                namespace="wishlist", app="wishlist-prober"
+              }[1m])) < 60)
+            for: 1m
+            labels:
+              namespace: wishlist
+              severity: critical
+              service: wishlist-service
+              category: availability
+            annotations:
+              summary: Пользовательский сценарий Wishlist недоступен
+              description: 'Работающий пробер не может прочитать контрольный вишлист в течение минуты. Проверьте backend, Service и PostgreSQL.'
+          - alert: WishlistPostgresUnavailable
+            expr: |
+              (max(
+                last_over_time(pg_up{namespace="wishlist", app="wishlist-postgres"}[1m])
+                and on (namespace, pod)
+                (last_over_time(up{namespace="wishlist", app="wishlist-postgres"}[1m]) == 1)
+              ) or vector(0)) < 1
+            for: 1m
+            labels:
+              namespace: wishlist
+              severity: critical
+              service: wishlist-postgres
+              category: availability
+            annotations:
+              summary: Нет подтверждения доступности PostgreSQL
+              description: 'Подключение к БД не подтверждается минуту: pg_up=0, exporter недоступен или свежие метрики отсутствуют. Проверьте postgres-0, exporter и vmagent; отсутствие данных само по себе не доказывает отказ БД.'
+          - alert: WishlistProberUnhealthy
+            expr: |
+              ((max(last_over_time(up{namespace="wishlist", app="wishlist-prober"}[1m])) or vector(0)) < 1)
+              or
+              (time() - (max(last_over_time(wishlist_probe_last_check_timestamp_seconds{
+                namespace="wishlist", app="wishlist-prober"
+              }[1m])) or vector(0)) >= 60)
+            for: 1m
+            labels:
+              namespace: wishlist
+              severity: warning
+              service: wishlist-prober
+              category: monitoring
+            annotations:
+              summary: Пробер не предоставляет свежие результаты
+              description: 'Метрики пробера не собираются или последняя завершённая проверка старше минуты. Проверьте Pod пробера, его логи и vmagent. Доступность приложения по этим данным неизвестна.'
+          - alert: WishlistMetricsUnavailable
+            expr: |
+              (max(last_over_time(up{namespace="wishlist", app="wishlist-service"}[1m])) or vector(0)) < 1
+            for: 1m
+            labels:
+              namespace: wishlist
+              severity: warning
+              service: wishlist-service
+              category: monitoring
+            annotations:
+              summary: Метрики backend не собираются
+              description: 'Ни одна реплика backend не предоставляет метрики в течение минуты. Проверьте Pods, порт метрик и обнаружение в vmagent. Пользовательскую доступность отдельно проверяет пробер.'
+      - name: wishlist-slo
+        type: prometheus
+        interval: 15s
+        rules:
+          - alert: WishlistSuccessSLOBreach
+            expr: |
+              WITH (
+                total = sum(increase(wishlist_http_requests_total{
+                  namespace="wishlist", app="wishlist-service", route=~"/api/v1/.*"
+                }[5m])),
+                errors = sum(increase(wishlist_http_requests_total{
+                  namespace="wishlist", app="wishlist-service", route=~"/api/v1/.*", status=~"5.."
+                }[5m])) or vector(0)
+              )
+              (100 * (1 - errors / total) < 99.9) and (total > 0)
+            for: 2m
+            labels:
+              namespace: wishlist
+              severity: warning
+              service: wishlist-service
+              category: slo
+            annotations:
+              summary: Доля API-запросов без 5xx ниже цели SLO
+              description: 'За последние 5 минут {{ $value | printf "%.2f" }}% запросов без 5xx при цели 99,9%. Условие держится 2 минуты. Проверьте ошибки API и зависимости.'
+          - alert: WishlistLatencySLOBreach
+            expr: |
+              WITH (
+                fast = sum(increase(wishlist_http_request_duration_seconds_bucket{
+                  namespace="wishlist", app="wishlist-service", route=~"/api/v1/.*", le="0.5"
+                }[5m])),
+                total = sum(increase(wishlist_http_request_duration_seconds_count{
+                  namespace="wishlist", app="wishlist-service", route=~"/api/v1/.*"
+                }[5m]))
+              )
+              (100 * fast / total < 99) and (total > 0)
+            for: 2m
+            labels:
+              namespace: wishlist
+              severity: warning
+              service: wishlist-service
+              category: slo
+            annotations:
+              summary: Доля быстрых API-ответов ниже цели SLO
+              description: 'За последние 5 минут {{ $value | printf "%.2f" }}% API-запросов завершились не дольше 500 мс при цели 99%. Условие держится 2 минуты. Проверьте задержки API и PostgreSQL.'
       - name: wishlist-runtime
         type: prometheus
         interval: 15s

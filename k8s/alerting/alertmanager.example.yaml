@@ -11,7 +11,7 @@ stringData:
       resolve_timeout: 1m
     route:
       receiver: telegram
-      group_by: [cluster, namespace, alertname]
+      group_by: [cluster, namespace, alertname, severity]
       group_wait: 10s
       group_interval: 30s
       repeat_interval: 4h
@@ -23,7 +23,7 @@ stringData:
             send_resolved: true
             parse_mode: ""
             message: |
-              {{ .Status | toUpper }}: {{ .CommonLabels.alertname }}
+              {{ .Status | toUpper }} [{{ .CommonLabels.severity }}]: {{ .CommonLabels.alertname }}
               {{ range .Alerts }}{{ .Annotations.summary }}
               {{ .Annotations.description }}
               {{ if .Labels.pod }}Pod: {{ .Labels.pod }}{{ end }}
